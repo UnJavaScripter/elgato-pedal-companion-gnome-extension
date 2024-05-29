@@ -1,0 +1,10 @@
+{
+  "name": "My example extension",
+  "description": "An extension",
+  "uuid": "example@gjs.guide",
+  "url": "https://github.com/example/example",
+  "settings-schema": "org.gnome.shell.extensions.Unjs",
+  "shell-version": [
+      "42"
+  ]
+}

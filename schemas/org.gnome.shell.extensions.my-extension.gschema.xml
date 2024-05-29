@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.Unjs" path="/org/gnome/shell/extensions/unjs/">
+    <key name="enable-feature" type="b">
+      <default>false</default>
+      <summary>Enable feature</summary>
+      <description>Enable or disable the feature.</description>
+    </key>
+  </schema>
+</schemalist>
