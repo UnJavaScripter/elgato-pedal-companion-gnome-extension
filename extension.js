@@ -1,9 +1,9 @@
-const { GObject, St, Gio, GLib } = imports.gi;
+const { GObject, St, Gio, GLib, Clutter } = imports.gi;
 const ExtensionUtils = imports.misc.extensionUtils;
+const Me = ExtensionUtils.getCurrentExtension();
 const Main = imports.ui.main;
 const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
-
 const _ = ExtensionUtils.gettext;
 
 BUS_NAME = 'org.gnome.shell.extensions.Unjs'
@@ -102,23 +102,58 @@ class Service {
             this.dbusSignalFlags.NONE,
             onSignalCallback
         );
-        console.log("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟")
-        console.log("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟")
-        console.log(this.signals[signalName])
-        console.log("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟")
-        console.log("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟")
+        // console.log(this.signals[signalName])
     }
+}
+
+const icons_list = ['media-playback-start', 'microphone-sensitivity-medium-symbolic', 'media-skip-backward-symbolic']
+
+function getRandomElementsFromList(inputList, n) {
+    if (inputList.length < n) {
+        throw new Error("Input list must contain at least 3 elements");
+    }
+
+    let shuffled = inputList.slice(0), i = inputList.length, min = i - n, temp, index;
+    while (i-- > min) {
+        index = Math.floor((i + 1) * Math.random());
+        temp = shuffled[index];
+        shuffled[index] = shuffled[i];
+        shuffled[i] = temp;
+    }
+    return shuffled.slice(min);
+}
+
+function getRandomState() {
+    const states = ["pressed", "held", "released"];
+    return states[Math.floor(Math.random() * states.length)]
+}
+
+// Function to build the object with the selected icons
+function buildObj(list) {
+    return new Map([
+        ["k1", { "icon": list[0], "state": getRandomState() }],
+        ["k2", { "icon": list[1], "state": getRandomState() }],
+        ["k3", { "icon": list[2], "state": getRandomState() }]
+    ])
+    
 }
 
 const Indicator = GObject.registerClass(
     class Indicator extends PanelMenu.Button {
         _init() {
             super._init(0.0, _('Example Indicator'));
+            this.style_class = "pedal-companion-widget--container"
+            this.box = new St.BoxLayout({
+                style_class: 'pedal-companion-widget--box'
+            });
+            this.add_child(this.box);
+            this.keyIndicatorsMap = new Map()
+            
+            // Add initial key indicators
+            const randomIcons = getRandomElementsFromList(icons_list, 3);
+            this._updateKeyIndicators(buildObj(randomIcons))
 
-            this.add_child(new St.Icon({
-                icon_name: 'face-smile-symbolic',
-                style_class: 'system-status-icon',
-            }));
+            this._registerDbus();
 
             let item1 = new PopupMenu.PopupMenuItem(_('Show Notification'));
             item1.connect('activate', () => {
@@ -127,13 +162,40 @@ const Indicator = GObject.registerClass(
 
             let item2 = new PopupMenu.PopupMenuItem(_('Send D-Bus Message'));
             item2.connect('activate', () => {
-                this._sendDbusMessage();
+                const randomIcons = getRandomElementsFromList(icons_list, 3);
+                const message = {"--x-elgato-pedal-companion-notification": Array.from(buildObj(randomIcons))}
+                this._sendDbusMessage(JSON.stringify(message));
             });
 
             this.menu.addMenuItem(item1);
             this.menu.addMenuItem(item2);
+        }
 
-            this._registerDbus();
+        _displayKeyIndicator(keyIndicatorObj) {
+            let iconClasses = "pedal-companion-widget--icon"
+            if (keyIndicatorObj.state) {
+                iconClasses += ` pedal-companion-widget--icon__${keyIndicatorObj.state}`
+            } 
+
+            let icon = new St.Icon({
+                icon_name: keyIndicatorObj.icon,
+                style_class: iconClasses,
+                name: keyIndicatorObj.name,
+                accessible_name: keyIndicatorObj.name,
+                icon_size: 18
+            });
+            this.box.add_child(icon);
+        }
+
+        _updateKeyIndicators(newKeyIndicatorsMap) {
+            if (this.keyIndicatorsMap.size) {
+                this.box.destroy_all_children()
+            }
+
+            this.keyIndicatorsMap = new Map([...this.keyIndicatorsMap, ...newKeyIndicatorsMap])
+            this.keyIndicatorsMap.forEach((keyIndicatorObj, name) => {
+                this._displayKeyIndicator({name, ...keyIndicatorObj});
+            });
         }
 
         _registerDbus() {
@@ -168,79 +230,16 @@ const Indicator = GObject.registerClass(
                         // onNameAcquired
                         (name) => {
                             log(`Name acquired: ${name}`);
-                            serviceInstance.signalSubscribe(SIGNAL_NAME, this._onSignalCallback)
-                            // Gio.DBus.session.signal_subscribe(
-                            //     null,
-                            //     BUS_NAME,
-                            //     signalName,
-                            //     OBJECT_PATH,
-                            //     null,
-                            //     this.dbusSignalFlags.NONE,
-                            //     this._onSignalCallback
-                            // );
+                            serviceInstance.signalSubscribe(SIGNAL_NAME, this._onSignalCallback.bind(this))
                         },
                         // onNameLost
                         (error) => {
                             logError(`Error acquiring bus name: ${error}`);
                         });
-                    
-
-
-                    // registrationId = bus.register_object(
-                    //     OBJECT_PATH,
-                    //     Gio.DBusNodeInfo.new_for_xml(interfaceXml).interfaces[0],
-                    //     (connection, sender, objectPath, interfaceName, methodName, parameters, invocation) => {
-                    //         console.log("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟")
-                    //         console.log("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟")
-                    //         console.log(interfaceName)
-                    //         console.log("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟")
-                    //         console.log("🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟🌟")
-                    //         log(`Method call: ${methodName}`);
-                    //         if (methodName === 'HelloWorld') {
-                    //             let name = parameters.deep_unpack()[0];
-                    //             invocation.return_value(new GLib.Variant('(s)', [`Hello, ${name}!`]));
-                    //         }
-                    //     },
-                    //     null,
-                    //     null
-                    // );
 
                     log('D-Bus interface registered successfully');
-
-                    // busNameOwnId = Gio.bus_own_name(
-                    //     Gio.BusType.SESSION,
-                    //     BUS_NAME,
-                    //     Gio.BusNameOwnerFlags.NONE,
-                    //     (connection, name) => {
-                    //         console.log(`${name}: connection acquired`);
-                    //     },
-                    //     (connection, name) => {
-                    //         console.log(`${name}: name acquired`);
-                    //     },
-                    //     (connection, name) => {
-                    //         console.log(`${name}: name lost`);
-                    //     }
-                    // );
-                    
-
-                    // signalName = bus.signal_subscribe(
-                    //     null,
-                    //     BUS_NAME,
-                    //     SIGNAL_NAME,
-                    //     OBJECT_PATH,
-                    //     null,
-                    //     Gio.DBusSignalFlags.NONE,
-                    //     (connection, sender, objectPath, interfaceName, signalName, parameters) => {
-                    //         let message = parameters.deep_unpack()[0];
-                    //         log(`Received signal with message: ${message}`);
-                    //         Main.notify('Received D-Bus Signal!', message);
-                    //     }
-                    // );
                     
                 } catch (e) {
-                    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                    console.log("poop💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩💩")
-                    console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
                     logError(e);
                 }
             });
@@ -253,24 +252,39 @@ const Indicator = GObject.registerClass(
             console.log("🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏")
             console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
             let message = parameters.deep_unpack()[0];
-            log(`Received signal using a service: ${message}`);
-            Main.notify('Signal!', message);
+            log(`Received signal with message: ${message}`);
+            Main.notify('Received D-Bus Signal', message);
+            
+            // Update icons based on the message
+            const expectedMessagePropertyContainer = "--x-elgato-pedal-companion-notification"
+            let newIconsObj;
+            try {
+                newIconsObj = JSON.parse(message);
+                try {
+                    if (newIconsObj[expectedMessagePropertyContainer]) {
+                        const iconsObjArr = newIconsObj[expectedMessagePropertyContainer]
+                        if (iconsObjArr.length) {
+                            this._updateKeyIndicators(new Map(iconsObjArr));
+                        } else {
+                            throw new Error("Empty icons object array.")
+                        }
+                    } else {
+                        console.error("the expected property DOES NOT exist", expectedMessagePropertyContainer);
+                        throw new Error("Signature property not found. Looking for property named", expectedMessagePropertyContainer)
+                    }
+                } catch ({name, error}) {
+                    console.error(`Failed to process messagee. ${name}: ${error}`);
+                }
+            } catch (error) {
+                console.error("Error parsing message to JSON.")
+            }
         }
 
-        _sendDbusMessage() {
+        _sendDbusMessage(message) {
             if (!bus) {
                 logError(new Error('D-Bus connection not established'));
                 return;
             }
-
-            let message = `Olis! at ${new Date().toLocaleTimeString()}`;
-            // bus.emit_signal(
-            //     null,
-            //     OBJECT_PATH,
-            //     BUS_NAME,
-            //     SIGNAL_NAME,
-            //     new GLib.Variant('(s)', [message])
-            // );
             serviceInstance.emitTestSignal(SIGNAL_NAME, message)
         }
 
@@ -307,11 +321,13 @@ class Extension {
     enable() {
         this._indicator = new Indicator();
         Main.panel.addToStatusArea(this._uuid, this._indicator);
+        
     }
 
     disable() {
         this._indicator.destroy();
         this._indicator = null;
+        exportedObject = null
     }
 }
 

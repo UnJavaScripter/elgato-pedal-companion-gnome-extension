@@ -1,3 +1,33 @@
-.pedal-icon {
-    background-color: red;
+.pedal-companion-widget--container {
+    color: #636363;
+    background-color: rgba(220, 220, 220, 0.075);
+    border-radius: 40px;
+}
+
+.pedal-companion-widget--container:hover {
+    background-color: rgba(220, 220, 220, 0.15);
+}
+
+.pedal-companion-widget--box {
+    padding: 1px 2px;
+}
+
+.pedal-companion-widget--icon {
+    background-color: rgba(220, 220, 220, 0.05);
+    color: #b4b4b4;
+    margin: 2px 2px;
+    border-radius: 20px;
+    width: 36px;
+}
+
+.pedal-companion-widget--icon__pressed {
+    background-color: rgba(173, 255, 47, 0.2);
+}
+
+.pedal-companion-widget--icon__held {
+    background-color: rgba(255, 173, 47, 0.3);
+}
+
+.pedal-companion-widget--icon__released {
+    background-color: rgba(220, 220, 220, 0.05);
 }

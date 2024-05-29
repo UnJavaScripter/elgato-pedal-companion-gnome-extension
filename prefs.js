@@ -28,7 +28,7 @@ function init() {
 }
 
 function buildPrefsWidget() {
-    const settings = ExtensionUtils.getSettings('unjs.testy.appita');
+    const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.Unjs');
 
     const widget = new Gtk.Box({
         orientation: Gtk.Orientation.VERTICAL,
