@@ -28,7 +28,7 @@ function init() {
 }
 
 function buildPrefsWidget() {
-    const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.Unjs');
+    const settings = ExtensionUtils.getSettings('org.gnome.shell.extensions.Elgatopedalcompanion');
 
     const widget = new Gtk.Box({
         orientation: Gtk.Orientation.VERTICAL,

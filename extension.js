@@ -6,17 +6,13 @@ const PanelMenu = imports.ui.panelMenu;
 const PopupMenu = imports.ui.popupMenu;
 const _ = ExtensionUtils.gettext;
 
-BUS_NAME = 'org.gnome.shell.extensions.Unjs'
-OBJECT_PATH = '/org/gnome/shell/extensions/unjs'
-SIGNAL_NAME = 'ExampleSignal'
+BUS_NAME = 'org.gnome.shell.extensions.Elgatopedalcompanion'
+OBJECT_PATH = '/org/gnome/shell/extensions/elgatopedalcompanion'
+SIGNAL_NAME = 'PedalActionSignal'
 
 const interfaceXml = `
 <node>
     <interface name="${BUS_NAME}">
-        <method name="HelloWorld">
-            <arg type="s" name="name" direction="in"/>
-            <arg type="s" name="response" direction="out"/>
-        </method>
         <signal name="${SIGNAL_NAME}">
             <arg type="s" name="message"/>
         </signal>
@@ -44,38 +40,6 @@ class Service {
         this.dbusSignalFlags = dbusSignalFlags
     }
     
-    // Properties
-    get ReadOnlyProperty() {
-        return this.glibVariant.new_string('a string');
-    }
-
-    get ReadWriteProperty() {
-        if (this._readWriteProperty === undefined)
-            return false;
-
-        return this._readWriteProperty;
-    }
-
-    set ReadWriteProperty(value) {
-        if (this._readWriteProperty === value)
-            return;
-
-        this._readWriteProperty = value;
-        this._impl.emit_property_changed('ReadWriteProperty',
-            this.glibVariant.new_boolean(this.ReadWriteProperty));
-    }
-
-    // Methods
-    SimpleMethod() {
-        console.log('SimpleMethod() invoked');
-    }
-
-    ComplexMethod(input) {
-        console.log(`ComplexMethod() invoked with '${input}'`);
-
-        return input.length;
-    }
-
     // Signals
     getSignalId(signalName) {
         return this.signals[signalName]
@@ -92,7 +56,6 @@ class Service {
     }
 
     signalSubscribe(signalName, onSignalCallback) {
-
         this.signals[signalName] = this.session.signal_subscribe(
             null,
             BUS_NAME,
@@ -102,11 +65,14 @@ class Service {
             this.dbusSignalFlags.NONE,
             onSignalCallback
         );
-        // console.log(this.signals[signalName])
     }
 }
 
-const icons_list = ['media-playback-start', 'microphone-sensitivity-medium-symbolic', 'media-skip-backward-symbolic']
+const icon_button_mapping = {
+    "Button1": "media-playback-start",
+    "Button2": "microphone-sensitivity-medium-symbolic",
+    "Button3": "media-skip-forward-symbolic"
+}
 
 function getRandomElementsFromList(inputList, n) {
     if (inputList.length < n) {
@@ -123,17 +89,12 @@ function getRandomElementsFromList(inputList, n) {
     return shuffled.slice(min);
 }
 
-function getRandomState() {
-    const states = ["pressed", "held", "released"];
-    return states[Math.floor(Math.random() * states.length)]
-}
-
 // Function to build the object with the selected icons
-function buildObj(list) {
+function buildObj(press_one) {
     return new Map([
-        ["k1", { "icon": list[0], "state": getRandomState() }],
-        ["k2", { "icon": list[1], "state": getRandomState() }],
-        ["k3", { "icon": list[2], "state": getRandomState() }]
+        ["Button1", { "name": "Button1", "icon": icon_button_mapping["Button1"], "state": "released", "action": "idle" }],
+        ["Button2", { "name": "Button2", "icon": icon_button_mapping["Button2"], "state": press_one ? "pressed" : "released", "action": "idle" }],
+        ["Button3", { "name": "Button3", "icon": icon_button_mapping["Button3"], "state": "released", "action": "idle" }]
     ])
     
 }
@@ -141,7 +102,7 @@ function buildObj(list) {
 const Indicator = GObject.registerClass(
     class Indicator extends PanelMenu.Button {
         _init() {
-            super._init(0.0, _('Example Indicator'));
+            super._init(0.0, _('Elgato pedal companion indicator'));
             this.style_class = "pedal-companion-widget--container"
             this.box = new St.BoxLayout({
                 style_class: 'pedal-companion-widget--box'
@@ -150,8 +111,8 @@ const Indicator = GObject.registerClass(
             this.keyIndicatorsMap = new Map()
             
             // Add initial key indicators
-            const randomIcons = getRandomElementsFromList(icons_list, 3);
-            this._updateKeyIndicators(buildObj(randomIcons))
+
+            this._updateKeyIndicators(buildObj())
 
             this._registerDbus();
 
@@ -162,8 +123,7 @@ const Indicator = GObject.registerClass(
 
             let item2 = new PopupMenu.PopupMenuItem(_('Send D-Bus Message'));
             item2.connect('activate', () => {
-                const randomIcons = getRandomElementsFromList(icons_list, 3);
-                const message = {"--x-elgato-pedal-companion-notification": Array.from(buildObj(randomIcons))}
+                const message = {"--x-elgato-pedal-companion-notification": Array.from(buildObj(true))}
                 this._sendDbusMessage(JSON.stringify(message));
             });
 
@@ -178,10 +138,10 @@ const Indicator = GObject.registerClass(
             } 
 
             let icon = new St.Icon({
-                icon_name: keyIndicatorObj.icon,
+                icon_name: icon_button_mapping[keyIndicatorObj.name],
                 style_class: iconClasses,
-                name: keyIndicatorObj.name,
-                accessible_name: keyIndicatorObj.name,
+                name: keyIndicatorObj.action,
+                accessible_name: keyIndicatorObj.action,
                 icon_size: 18
             });
             this.box.add_child(icon);
@@ -191,7 +151,6 @@ const Indicator = GObject.registerClass(
             if (this.keyIndicatorsMap.size) {
                 this.box.destroy_all_children()
             }
-
             this.keyIndicatorsMap = new Map([...this.keyIndicatorsMap, ...newKeyIndicatorsMap])
             this.keyIndicatorsMap.forEach((keyIndicatorObj, name) => {
                 this._displayKeyIndicator({name, ...keyIndicatorObj});
@@ -214,11 +173,6 @@ const Indicator = GObject.registerClass(
                         Gio.BusNameOwnerFlags.NONE,
                         // onBusAcquired
                         (connection, _name) => {
-                            // Another method to get the connection: const connection = Gio.DBus.session;
-                            log(`Successfully acquired bus name: ${BUS_NAME}`);
-                            console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                            console.log(connection, _name)
-                            console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
                             serviceInstance = new Service(Gio.DBus.session, GLib.Variant, Gio.DBusSignalFlags);
                             exportedObject = Gio.DBusExportedObject.wrapJSObject(interfaceXml,
                                 serviceInstance);
@@ -230,7 +184,37 @@ const Indicator = GObject.registerClass(
                         // onNameAcquired
                         (name) => {
                             log(`Name acquired: ${name}`);
-                            serviceInstance.signalSubscribe(SIGNAL_NAME, this._onSignalCallback.bind(this))
+                            serviceInstance.signalSubscribe(SIGNAL_NAME, (connection, sender, objectPath, interfaceName, signalName, parameters) => {
+                                console.log(parameters.deep_unpack());
+                                const message = parameters.deep_unpack()[0];
+                                const expectedMessagePropertyContainer = "--x-elgato-pedal-companion-notification"
+                    
+                                let pedalActionsObj;
+                                try {
+                                    pedalActionsObj = JSON.parse(message);
+          
+                                    log(`name: ${pedalActionsObj[expectedMessagePropertyContainer][0]}`);
+                    
+                    
+                                    try {
+                                        if (pedalActionsObj[expectedMessagePropertyContainer]) {
+                                            const iconsObjArr = pedalActionsObj[expectedMessagePropertyContainer]
+                                            if (iconsObjArr.length) {
+                                                this._updateKeyIndicators(new Map(iconsObjArr));
+                                            } else {
+                                                throw new Error("Empty icons object array.")
+                                            }
+                                        } else {
+                                            console.error("the expected property DOES NOT exist", expectedMessagePropertyContainer);
+                                            throw new Error("Signature property not found. Looking for property named", expectedMessagePropertyContainer)
+                                        }
+                                    } catch ({name, error}) {
+                                        console.error(`Failed to process messagee. ${name}: ${error}`);
+                                    }
+                                } catch (error) {
+                                    console.error("Error parsing message to JSON.")
+                                }
+                            })
                         },
                         // onNameLost
                         (error) => {
@@ -243,41 +227,6 @@ const Indicator = GObject.registerClass(
                     logError(e);
                 }
             });
-        }
-
-        _onSignalCallback(connection, sender, objectPath, interfaceName, signalName, parameters) {
-            console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            console.log("_onSignalCallback 🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏")
-            console.log(connection, sender, objectPath, interfaceName, signalName,);
-            console.log("🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏🎏")
-            console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-            let message = parameters.deep_unpack()[0];
-            log(`Received signal with message: ${message}`);
-            Main.notify('Received D-Bus Signal', message);
-            
-            // Update icons based on the message
-            const expectedMessagePropertyContainer = "--x-elgato-pedal-companion-notification"
-            let newIconsObj;
-            try {
-                newIconsObj = JSON.parse(message);
-                try {
-                    if (newIconsObj[expectedMessagePropertyContainer]) {
-                        const iconsObjArr = newIconsObj[expectedMessagePropertyContainer]
-                        if (iconsObjArr.length) {
-                            this._updateKeyIndicators(new Map(iconsObjArr));
-                        } else {
-                            throw new Error("Empty icons object array.")
-                        }
-                    } else {
-                        console.error("the expected property DOES NOT exist", expectedMessagePropertyContainer);
-                        throw new Error("Signature property not found. Looking for property named", expectedMessagePropertyContainer)
-                    }
-                } catch ({name, error}) {
-                    console.error(`Failed to process messagee. ${name}: ${error}`);
-                }
-            } catch (error) {
-                console.error("Error parsing message to JSON.")
-            }
         }
 
         _sendDbusMessage(message) {
@@ -315,7 +264,7 @@ const Indicator = GObject.registerClass(
 class Extension {
     constructor(uuid) {
         this._uuid = uuid;
-        ExtensionUtils.initTranslations('example');
+        ExtensionUtils.initTranslations('');
     }
 
     enable() {
