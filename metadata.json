@@ -1,7 +1,7 @@
 {
   "name": "Elgato pedal companion",
   "description": "An extension that is a companion for the Elgato pedal controller available here: https://github.com/UnJavaScripter/elgato-pedal-controller-linux",
-  "uuid": "Elgatopedalcompanion@diegocoy.com",
+  "uuid": "elgatopedalcompanion@diegocoy.com",
   "url": "https://github.com/UnJavaScripter/elgato-pedal-companion-gnome-extension",
   "settings-schema": "org.gnome.shell.extensions.Elgatopedalcompanion",
   "shell-version": [

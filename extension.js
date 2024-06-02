@@ -264,7 +264,7 @@ const Indicator = GObject.registerClass(
 class Extension {
     constructor(uuid) {
         this._uuid = uuid;
-        ExtensionUtils.initTranslations('');
+        ExtensionUtils.initTranslations('example');
     }
 
     enable() {
